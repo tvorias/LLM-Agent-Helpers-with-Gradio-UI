@@ -6,7 +6,7 @@ import gradio as gr
 
 
 def ask_question(
-        question,
+        question=None,
         conversation_history=None,
         ui_mode=True,
         max_messages=20
@@ -73,7 +73,7 @@ def ask_question(
 
         # Trim history if needed (keep system prompt)
         while len(ask_question.conversation_history) > max_messages:
-            conversation_history.pop(1)
+            ask_question.conversation_history.pop(1)
 
         # Add user question
         ask_question.conversation_history.append(
@@ -83,7 +83,7 @@ def ask_question(
         # Call the model
         response = ask_question.client.chat.completions.create(
             model="gpt-4.1-mini",
-            messages=conversation_history
+            messages=ask_question.conversation_history
         )
 
         answer = response.choices[0].message.content
@@ -94,38 +94,49 @@ def ask_question(
         )
 
         display(Markdown(answer))
-        return {"text": answer, "history": ask_question.conversation_history}
-    
+
     else:
-        # Define Gradio callback
-        def chat_ui(user_message, history):
-            # Trim history
-            while len(ask_question.conversation_history) > max_messages:
-                ask_question.conversation_history.pop(1)
+        # Preload initial question if provided
+        chatbot_history = []
 
-            # Add user message
-            ask_question.conversation_history.append(
-                {"role": "user", "content": user_message}
-            )
+        if question is not None:
+            # Add to OpenAI conversation
+            ask_question.conversation_history.append({"role": "user", "content": question})
 
-            # Call LLM
             response = ask_question.client.chat.completions.create(
                 model="gpt-4.1-mini",
                 messages=ask_question.conversation_history
             )
             answer = response.choices[0].message.content
+            ask_question.conversation_history.append({"role": "assistant", "content": answer})
 
-            # Store assistant reply
-            ask_question.conversation_history.append(
-                {"role": "assistant", "content": answer}
+            # Add to Gradio chatbot history
+            chatbot_history.append({"role": "user", "content": question})
+            chatbot_history.append({"role": "assistant", "content": answer})
+
+        # Define Gradio callback for subsequent messages
+        def chat_ui(user_message, history):
+            # Trim conversation_history
+            while len(ask_question.conversation_history) > max_messages:
+                ask_question.conversation_history.pop(1)
+
+            # Add user message
+            ask_question.conversation_history.append({"role": "user", "content": user_message})
+
+            # Call model
+            response = ask_question.client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=ask_question.conversation_history
             )
+            answer = response.choices[0].message.content
+            ask_question.conversation_history.append({"role": "assistant", "content": answer})
 
-            history.append((user_message, answer))
-            return history, ""
+            # Update Gradio chatbot with messages in dict format
+            return ask_question.conversation_history[1:], ""  # skip system prompt for display
 
         # Build Gradio UI
         with gr.Blocks() as ui:
-            chatbot = gr.Chatbot()
+            chatbot = gr.Chatbot(value=chatbot_history, height=500)  # <-- must be list of tuples
             textbox = gr.Textbox(
                 label="Chat with AI Assistant",
                 placeholder="Type your question here..."
