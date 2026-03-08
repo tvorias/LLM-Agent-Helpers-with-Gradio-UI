@@ -1,8 +1,5 @@
 # LLM-Agent-Helpers-with-Gradio-UI
-Conversation-Aware LLM Utilities for Agent Development &amp; Learning with Gradio UI
-
-# LLM Agent Helpers
-**Conversation-Aware LLM Utilities for Agent Development & Learning**
+**Conversation-Aware LLM Utilities for Agent Development &amp; Learning with Gradio interactive chatbox UI**
 
 A lightweight Python toolkit for interacting with large language models in a stateful, notebook-friendly way, designed to support hands-on development of LLM agents and workflows.
 
